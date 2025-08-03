@@ -51,6 +51,23 @@ name = "request_processing"
 harness = false
 path = "benches/request_processing.rs"
 
+[[bin]]
+name = "router-benchmark"
+path = "benches/router_benchmark.rs"
+
+[dependencies.clap]
+version = "4.5"
+features = ["derive"]
+
+[dependencies.indicatif]
+version = "0.17"
+
+[dependencies.parking_lot]
+version = "0.12"
+
+[dependencies.num_cpus]
+version = "1.16"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
