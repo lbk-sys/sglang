@@ -207,6 +207,7 @@ class EAGLEWorker(TpModelWorker):
     def draft_model_runner(self):
         return self.model_runner
 
+    # for overlap with spec dec v2, scheduler comes here
     def forward_batch_generation(self, batch: ModelWorkerBatch) -> ForwardBatchOutput:
         """
         Run one speculative decoding forward batch.
@@ -216,6 +217,7 @@ class EAGLEWorker(TpModelWorker):
         Returns:
             batch_output: The results in a tuple
         """
+        print(f"EAGLEWorker.forward_batch_generation")
         if batch.forward_mode.is_decode():
             old_spec_info = batch.spec_info
             spec_info = self.draft(batch)
@@ -422,6 +424,7 @@ class EAGLEWorker(TpModelWorker):
         new_seq_lens = seq_lens_backup + accept_length
         verify_done = torch.cuda.Event()
         verify_done.record()
+        print(f"DEBUG: EAGLEWorker.verify -- {accept_index=}, {accept_length=}, {new_seq_lens=}, {seq_lens_backup=}")
 
         # Move the accepted tokens to the target KV cache locations
         batch.seq_lens = seq_lens_backup

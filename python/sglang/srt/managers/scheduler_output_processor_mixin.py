@@ -55,6 +55,7 @@ class SchedulerOutputProcessorMixin:
                 result.copy_done,
             )
 
+            # current stream is scheduler_stream, copy_done is in forward_stream, sync with the forward_stream
             if copy_done is not None:
                 copy_done.synchronize()
 
@@ -271,14 +272,19 @@ class SchedulerOutputProcessorMixin:
 
             req.check_finished()
             if req.finished():
-                if batch.spec_algorithm.is_eagle():
+                if not self.enable_overlap and batch.spec_algorithm.is_eagle():
                     # TODO: is there a better way to get the indices to free?
                     req_pool_index = batch.req_pool_indices[i]
                     start_len = batch.spec_info.new_seq_lens[i]
                     allocate_len = batch.spec_info.allocate_lens[i]
                     indices_to_free = self.req_to_token_pool.req_to_token[req_pool_index][start_len:allocate_len]
                     self.token_to_kv_pool_allocator.free(indices_to_free)
+                elif self.enable_overlap and batch.spec_algorithm.is_eagle():
+                    # TODO: how to free for overlap spec dec?
+                    print(f"DEBUG: free for overlap spec dec: {batch=}")
+                    pass
                 self.tree_cache.cache_finished_req(req)
+                print(f"DEBUG: cache finished req: {req.rid=}, {req.origin_input_ids=}, {req.output_ids=}")
                 req.time_stats.completion_time = time.time()
 
             if req.return_logprob and batch.spec_algorithm.is_none():
