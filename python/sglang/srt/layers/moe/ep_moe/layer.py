@@ -56,7 +56,10 @@ _is_fp8_fnuz = is_fp8_fnuz()
 _use_aiter = get_bool_env_var("SGLANG_USE_AITER") and _is_hip
 use_flashinfer_trtllm_moe = (
     global_server_args_dict["enable_flashinfer_trtllm_moe"]
-    and global_server_args_dict["enable_ep_moe"]
+    and (
+        global_server_args_dict["enable_ep_moe"]
+        or global_server_args_dict.get("quantization") == "modelopt_fp4"  # Also enable for FP4
+    )
 )
 
 if not (_is_npu or _is_hip):
@@ -1281,11 +1284,23 @@ class FlashInferEPMoE(EPMoE):
 def get_moe_impl_class():
     if global_server_args_dict["enable_deepep_moe"]:
         return DeepEPMoE
+    
+    # NEW: Direct FP4 detection (bypasses EP requirements)
+    # Check for FP4 quantization with TRTLLM flag, regardless of EP
+    if global_server_args_dict.get("enable_flashinfer_trtllm_moe", False):
+        try:
+            # Check the quantization argument directly 
+            quantization = global_server_args_dict.get("quantization")
+            if quantization == "modelopt_fp4":
+                from sglang.srt.layers.moe.fused_moe_triton.layer import FlashInferFP4MoE
+                return FlashInferFP4MoE
+        except:
+            pass
+    
     if global_server_args_dict["enable_flashinfer_cutlass_moe"]:
         # Must come before EPMoE because FusedMoE also supports enable_ep_moe
         return FusedMoE
     if use_flashinfer_trtllm_moe:
-        # Must come before EPMoE because FusedMoE also supports enable_ep_moe
         return FlashInferEPMoE
     if global_server_args_dict["enable_ep_moe"]:
         return EPMoE

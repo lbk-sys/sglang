@@ -435,10 +435,6 @@ class ServerArgs:
             ), "modelopt_fp4 quantization is required for Flashinfer MOE"
             os.environ["TRTLLM_ENABLE_PDL"] = "1"
 
-        if self.enable_flashinfer_trtllm_moe:
-            assert self.enable_ep_moe, "EP MoE is required for Flashinfer TRTLLM MOE"
-            logger.warning(f"Flashinfer TRTLLM MoE is enabled.")
-
         # DeepEP MoE
         if self.enable_deepep_moe:
             if self.deepep_mode == "normal":
@@ -1815,6 +1811,13 @@ class ServerArgs:
             1,
             None,
         }, "moe_dense_tp_size only support 1 and None currently"
+
+        # Check FlashInfer TRTLLM MoE compatibility
+        if self.enable_flashinfer_trtllm_moe:
+            assert self.disable_shared_experts_fusion, (
+                "--enable-flashinfer-trtllm-moe requires --disable-shared-experts-fusion. "
+                "FlashInfer TRTLLM MoE is not compatible with shared experts fusion."
+            )
 
         # Check model architecture
         model_arch = self.get_hf_config().architectures[0]
