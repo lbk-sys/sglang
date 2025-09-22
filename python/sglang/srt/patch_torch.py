@@ -19,22 +19,33 @@ from torch.multiprocessing import reductions
 
 from sglang.srt.utils import is_npu
 
+if is_npu():
+    from torch_npu.multiprocessing import reductions as npu_reductions
+
+SGLANG_TP_RANK = None
+    
 
 def monkey_patch_torch_reductions():
     """Monkey patching before Torch https://github.com/pytorch/pytorch/pull/149248 is fixed"""
 
-    # Currently, NPU does not support UUID. This has been temporarily commented out, with support expected in the fourth quarter.
+    # Currently, NPU does not support UUID. This is a temporary fix, with support expected in the fourth quarter.
     if is_npu():
-        return
-
-    if hasattr(reductions, "_reduce_tensor_original"):
-        return
-
-    reductions._reduce_tensor_original = reductions.reduce_tensor
-    reductions._rebuild_cuda_tensor_original = reductions.rebuild_cuda_tensor
-
-    reductions.reduce_tensor = _reduce_tensor_modified
-    reductions.rebuild_cuda_tensor = _rebuild_cuda_tensor_modified
+        '''
+        This is a temp patch for npu as HDK does not support device uuid for now
+        '''
+        if hasattr(npu_reductions, "_rebuild_npu_tensor_original"):
+            return
+        
+        npu_reductions._rebuild_npu_tensor_original = npu_reductions.rebuild_npu_tensor
+        npu_reductions.rebuild_npu_tensor = _rebuild_npu_tensor_modified
+        
+    else:
+        if hasattr(reductions, "_reduce_tensor_original"):
+            return
+        reductions._reduce_tensor_original = reductions.reduce_tensor
+        reductions._rebuild_cuda_tensor_original = reductions.rebuild_cuda_tensor
+        reductions.reduce_tensor = _reduce_tensor_modified
+        reductions.rebuild_cuda_tensor = _rebuild_cuda_tensor_modified
 
     reductions.init_reductions()
 
@@ -43,6 +54,21 @@ def monkey_patch_torch_reductions():
 # so it looks safe to use a constant.
 _REDUCE_TENSOR_ARG_DEVICE_INDEX = 6
 
+
+def _rebuild_npu_tensor_modified(*args):
+    args = _modify_tuple(args, _REDUCE_TENSOR_ARG_DEVICE_INDEX, npu_verl_to_sglang)
+    return npu_reductions._rebuild_npu_tensor_original(*args)
+
+
+def register_sgl_tp_rank(rank: int):
+    global SGLANG_TP_RANK
+    SGLANG_TP_RANK = rank
+
+
+def npu_verl_to_sglang(device: int):
+    assert SGLANG_TP_RANK is not None
+    return SGLANG_TP_RANK
+    
 
 def _reduce_tensor_modified(*args, **kwargs):
     output_fn, output_args = reductions._reduce_tensor_original(*args, **kwargs)
