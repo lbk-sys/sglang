@@ -19,7 +19,9 @@ from torch.multiprocessing import reductions
 
 from sglang.srt.utils import is_npu
 
-if is_npu():
+_is_npu = is_npu()
+
+if _is_npu:
     from torch_npu.multiprocessing import reductions as npu_reductions
 
 SGLANG_TP_RANK = None
@@ -29,7 +31,7 @@ def monkey_patch_torch_reductions():
     """Monkey patching before Torch https://github.com/pytorch/pytorch/pull/149248 is fixed"""
 
     # Currently, NPU does not support UUID. This is a temporary fix, with support expected in the fourth quarter.
-    if is_npu():
+    if _is_npu:
         '''
         This is a temp patch for npu as HDK does not support device uuid for now
         '''

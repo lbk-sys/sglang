@@ -673,7 +673,7 @@ class ModelRunner:
                 server_args=self.server_args,
                 model_config=self.model_config,
             )
-            if is_npu():
+            if _is_npu:
                 from sglang.srt.patch_torch import register_sgl_tp_rank
                 register_sgl_tp_rank(self.gpu_id)
 

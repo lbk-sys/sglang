@@ -192,7 +192,7 @@ TEST_RETRACT = get_bool_env_var("SGLANG_TEST_RETRACT")
 GRAMMAR_TIMEOUT = float(os.environ.get("SGLANG_GRAMMAR_TIMEOUT", 300))
 
 _is_cpu = is_cpu()
-LAST_UPDATE = False
+IS_WEIGHT_UPDATE_REQ = False
 
 @dataclass
 class GenerationBatchResult:
@@ -856,12 +856,12 @@ class Scheduler(
     def event_loop_overlap(self):
         """A scheduler loop that overlaps the CPU processing and GPU computation."""
         self.result_queue = deque()
-        global LAST_UPDATE
+        global IS_WEIGHT_UPDATE_REQ
 
         while True:
             recv_reqs = self.recv_requests()
             self.process_input_requests(recv_reqs)
-            if LAST_UPDATE:
+            if IS_WEIGHT_UPDATE_REQ:
                 continue
 
             batch = self.get_next_batch_to_run()
@@ -1143,7 +1143,7 @@ class Scheduler(
         return recv_reqs
 
     def process_input_requests(self, recv_reqs: List):
-        global LAST_UPDATE
+        global IS_WEIGHT_UPDATE_REQ
         for recv_req in recv_reqs:
             # If it is a health check generation request and there are running requests, ignore it.
             if is_health_check_generate_req(recv_req) and (
@@ -1181,9 +1181,9 @@ class Scheduler(
             output = self._request_dispatcher(recv_req)
             if output is not None:
                 if isinstance(output, UpdateWeightsFromTensorReqOutput):
-                    LAST_UPDATE = True
+                    IS_WEIGHT_UPDATE_REQ = True
                 else:
-                    LAST_UPDATE = False
+                    IS_WEIGHT_UPDATE_REQ = False
                 if isinstance(output, RpcReqOutput):
                     if self.recv_from_rpc is not None:
                         self.recv_from_rpc.send_pyobj(output)
